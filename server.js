@@ -32,60 +32,57 @@ app.use(express.static('public'));
 //-----------------------------------------------------------------
 app.get('/scrape', function(req, res){
     
-    url = 'http://www.imdb.com/title/tt1229340/';
+    url = 'http://www.roboticstrends.com/';
 
     request(url, function(error, response, html){
         if(!error){
             var $ = cheerio.load(html);
 
-            var title, release, rating;
-            var json = { title : "", release : "", rating : ""};
+            // loop through each article
+			$('article').each(function(i, element) {
 
-            $('.header').filter(function(){
-                var data = $(this);
-                title = data.children().first().text();
-            
-                release = data.children().last().children().text();
+				// declare an empty object to pass to mongo
+				var article = {};
 
-                json.title = title;
-                json.release = release;
-            })
+				// grab the title, href and content of each article
+				var title = $(this).find('h2.title').text();
+				var href = $(this).find('a').attr('href');
+				var slug = $(this).find('.slug').text();
+				var slug_href = $(this).find('.slug a').attr('href');
+				var affiliation = $(this).find('.affiliation').text();
+				var affiliation_href = $(this).find('.affiliation a').attr('href');
+				var content = $(this).find('p.teaser').text();
 
-request('http://www.nytimes.com/', function (error, response, html) {
-  if (!error && response.statusCode == 200) {
-    var $ = cheerio.load(html);
-    var parsedResults = [];
-//     $('span.comhead').each(function(i, element){
-//       // Select the previous element
-//       var a = $(this).prev();
-//       // Get the rank by parsing the element two levels above the "a" element
-//       var rank = a.parent().parent().text();
-//       // Parse the link title
-//       var title = a.text();
-//       // Parse the href attribute from the "a" element
-//       var url = a.attr('href');
-//       // Get the subtext children from the next row in the HTML table.
-//       var subtext = a.parent().parent().next().children('.subtext').children();
-//       // Extract the relevant data from the children
-//       var points = $(subtext).eq(0).text();
-//       var username = $(subtext).eq(1).text();
-//       var comments = $(subtext).eq(2).text();
-//       // Our parsed meta data object
-//       var metadata = {
-//         rank: parseInt(rank),
-//         title: title,
-//         url: url,
-//         points: parseInt(points),
-//         username: username,
-//         comments: parseInt(comments)
-//       };
-//       // Push meta-data into parsedResults array
-//       parsedResults.push(metadata);
-//     });
-//     // Log our finished parse results in the terminal
-//     console.log(parsedResults);
-//   }
-// });
+				console.log(slug_href, affiliation_href);
+
+				// only add article elements that have content for a title
+				if (title !== '') {
+					// build the article object
+					article = {
+						title: title,
+						href: href,
+						slug: slug,
+						slug_href: slug_href,
+						affiliation: affiliation,
+						affiliation_href: affiliation_href,
+						content: content,
+						comments: []
+					}
+
+					// update the db with articles
+					db.articles.update(article, article, {upsert: true}, function(err, saved) {
+						
+						if (err) throw err;
+
+						console.log(saved);
+
+					}); // end db.articles.update()
+
+				} // end if
+
+			}); // end article.each()
+
+		});
 
 
 //Routes-----------------------------------------------------------
